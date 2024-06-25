@@ -1,41 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
 
     const navigate = useNavigate();
-
-    useEffect(() => {
-        const checkAuth = async () => {
-            const token = localStorage.getItem('token');
-            console.log(token)
-            if (!token) {
-                return;
-            }
-
-            try {
-                const res = await fetch("http://localhost:3000/auth/validate", {
-                    method: "GET",
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "Content-Type": "application/json"
-                    }
-                })
-
-                const data = await res.json();
-                if (data.status == "ok") {
-                    navigate('/')
-                } else if (data.type == 2) {
-                    localStorage.removeItem('token');
-                }
-            } catch (error) {
-                console.log(error)
-            }
-        }
-
-        checkAuth();
-    });
-
 
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
@@ -47,6 +15,7 @@ const Login = () => {
 
     const [alertMessage, setAlertMessage] = useState('');
     const [isAlertVisible, setIsAlertVisible] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     const handleCreateAccount = () => {
         setIsCreatingAccount(true);
@@ -75,17 +44,21 @@ const Login = () => {
     }
 
     const handleSubmit = async () => {
+        setLoading(true);
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (isCreatingAccount) {
             if (password == '' || confrmPassword == '' || email == '' || username == '') {
                 showAlert('Please fill in all fields');
+                setLoading(false);
                 return;
             }
             else if (password !== confrmPassword) {
                 showAlert('Passwords do not match');
+                setLoading(false);
                 return;
             } else if (!emailRegex.test(email)) {
                 showAlert('Please enter a valid email address');
+                setLoading(false);
                 return;
             } else {
                 const res = await fetch("http://localhost:3000/auth/newUser", {
@@ -99,9 +72,11 @@ const Login = () => {
                 const data = await res.json();
                 if (data?.error == "email") {
                     showAlert("E-Mail already exists");
+                    setLoading(false);
                     return;
                 } else if (data?.error == "username") {
                     showAlert("Username already exists");
+                    setLoading(false);
                     return;
                 } else if (data.status == "ok") {
                     console.log(data);
@@ -117,6 +92,7 @@ const Login = () => {
         } else {
             if (username == '' || password == '') {
                 showAlert('Please fill in all fields');
+                setLoading(false);
                 return;
             }
             const res = await fetch("http://localhost:3000/auth/login", {
@@ -130,12 +106,12 @@ const Login = () => {
             const data = await res.json()
             console.log(data)
             if (data?.status == "ok") {
-                console.log("login successful");
                 localStorage.setItem("token", data.token);
                 navigate('/');
                 return;
             } else if (data?.status == "error") {
                 showAlert("Invalid username or password");
+                setLoading(false);
                 return;
             }
         }
@@ -217,7 +193,7 @@ const Login = () => {
                         <input value={confrmPassword} onChange={(e) => setConfrmPassword(e.target.value)} type="password" className="grow" placeholder='Confirm Password' />
                     </label>
                 )}
-                <button onClick={handleSubmit} className='btn btn-primary w-full'>Submit</button>
+                <button onClick={handleSubmit} className='btn btn-primary w-full'>{loading && <span className=" absolute right-8 loading loading-spinner"></span>}Submit</button>
 
                 <div className="flex justify-between mt-2">
                     {!isForgotPassword && <button onClick={handleForgotPassword} className="btn btn-link">Forgot Password</button>}
