@@ -1,6 +1,7 @@
 import { Router } from "express";
 import User from "../models/users.model.js"
 import jwt from "jsonwebtoken"
+import bcrypt from "bcrypt"
 
 const router = Router();
 
@@ -36,16 +37,24 @@ router.get("/validate", (req, res) => {
 router.post("/newUser", async (req, res) => {
     try {
 
+        const hash = await bcrypt.hash(req.body.password, 13)
+
         const payload = {
             username: req.body.username,
-            password: req.body.password,
+            password: hash,
             email: req.body.email,
             token_version: 1
         }
 
         await User.create(payload)
 
-        const token = jwt.sign(payload, process.env.JWT_SECRET)
+        const jwt_payload = {
+            username: req.body.username,
+            email: req.body.email,
+            token_version: 1
+        }
+
+        const token = jwt.sign(jwt_payload, process.env.JWT_SECRET)
 
         res.json({ status: "ok", token })
     } catch (error) {
@@ -60,18 +69,24 @@ router.post("/newUser", async (req, res) => {
 router.post("/login", async (req, res) => {
     const user = await User.findOne({
         username: req.body.username,
-        password: req.body.password
     })
+
     if (user) {
-        const payload = {
-            username: user.username,
-            password: user.password,
-            email: user.email,
-            token_version: user.token_version
+        const match = await bcrypt.compare(req.body.password, user.password)
+
+        if (match) {
+            const payload = {
+                username: user.username,
+                email: user.email,
+                token_version: user.token_version
+            }
+
+            const token = jwt.sign(payload, process.env.JWT_SECRET)
+            res.json({ status: "ok", token })
+        } else {
+            res.json({ status: "error", user: false })
         }
 
-        const token = jwt.sign(payload, process.env.JWT_SECRET)
-        res.json({ status: "ok", token })
     } else {
         res.json({ status: "error", user: false })
     }

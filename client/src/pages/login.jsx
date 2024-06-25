@@ -128,6 +128,7 @@ const Login = () => {
             })
 
             const data = await res.json()
+            console.log(data)
             if (data?.status == "ok") {
                 console.log("login successful");
                 localStorage.setItem("token", data.token);
