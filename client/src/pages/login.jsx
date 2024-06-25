@@ -1,13 +1,41 @@
 import React, { useEffect, useState } from 'react'
-// import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
 
-    // const navigate = useNavigate();
+    const navigate = useNavigate();
 
-    // useEffect(() => {
-    //     navigate('/', { replace: true });
-    // }, [navigate]);
+    useEffect(() => {
+        const checkAuth = async () => {
+            const token = localStorage.getItem('token');
+            console.log(token)
+            if (!token) {
+                return;
+            }
+
+            try {
+                const res = await fetch("http://localhost:3000/auth/validate", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                })
+
+                const data = await res.json();
+                if (data.status == "ok") {
+                    navigate('/')
+                } else if (data.type == 2) {
+                    localStorage.removeItem('token');
+                }
+            } catch (error) {
+                console.log(error)
+            }
+        }
+
+        checkAuth();
+    });
+
 
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
@@ -18,6 +46,7 @@ const Login = () => {
     const [isForgotPassword, setIsForgotPassword] = useState(false);
 
     const [alertMessage, setAlertMessage] = useState('');
+    const [isAlertVisible, setIsAlertVisible] = useState(false);
 
     const handleCreateAccount = () => {
         setIsCreatingAccount(true);
@@ -34,13 +63,30 @@ const Login = () => {
         setIsCreatingAccount(false);
     }
 
+    const showAlert = (message) => {
+        setAlertMessage(message);
+        setIsAlertVisible(true);
+        setTimeout(() => {
+            setIsAlertVisible(false);
+            setTimeout(() => {
+                setAlertMessage('');
+            }, 500);
+        }, 3000);
+    }
+
     const handleSubmit = async () => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (isCreatingAccount) {
-            if (password !== confrmPassword) {
-                setAlertMessage('Passwords do not match');
+            if (password == '' || confrmPassword == '' || email == '' || username == '') {
+                showAlert('Please fill in all fields');
+                return;
+            }
+            else if (password !== confrmPassword) {
+                showAlert('Passwords do not match');
+                return;
             } else if (!emailRegex.test(email)) {
-                setAlertMessage('Please enter a valid email address');
+                showAlert('Please enter a valid email address');
+                return;
             } else {
                 const res = await fetch("http://localhost:3000/auth/newUser", {
                     method: "POST",
@@ -51,31 +97,28 @@ const Login = () => {
                 })
 
                 const data = await res.json();
-                console.log(data.error)
                 if (data?.error == "email") {
-                    console.log("email already exists");
-                    setAlertMessage("email already exists");
+                    showAlert("E-Mail already exists");
+                    return;
                 } else if (data?.error == "username") {
-                    console.log("username already exists");
-                    setAlertMessage("username already exists");
+                    showAlert("Username already exists");
+                    return;
                 } else if (data.status == "ok") {
-                    console.log("account created successfully");
+                    console.log(data);
+                    localStorage.setItem("token", data.token);
+                    navigate('/');
                     return;
                 }
-                setTimeout(() => {
-                    setAlertMessage('');
-                }, 3000);
                 return;
             }
-            setTimeout(() => {
-                setAlertMessage('');
-            }, 3000);
-
-            return;
         } else if (isForgotPassword) {
 
             return;
         } else {
+            if (username == '' || password == '') {
+                showAlert('Please fill in all fields');
+                return;
+            }
             const res = await fetch("http://localhost:3000/auth/login", {
                 method: "POST",
                 headers: {
@@ -87,9 +130,11 @@ const Login = () => {
             const data = await res.json()
             if (data?.status == "ok") {
                 console.log("login successful");
+                localStorage.setItem("token", data.token);
+                navigate('/');
                 return;
             } else if (data?.status == "error") {
-                console.log("Invalid Credentials");
+                showAlert("Invalid username or password");
                 return;
             }
         }
@@ -181,20 +226,22 @@ const Login = () => {
                 </div>
             </section>
             {alertMessage && (
-                <div role="alert" className=" w-3/4 alert alert-info mt-16">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-6 w-6 shrink-0 stroke-current"
-                        fill="none"
-                        viewBox="0 0 24 24">
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <span>{alertMessage}</span>
-                </div>
+                <section className=' w-full overflow-hidden flex justify-center'>
+                    <div role="alert" className={` w-64 alert alert-info mt-10 transform transition-all duration-1000 ease-out ${isAlertVisible ? '' : '-translate-y-[100%] opacity-0'}`}>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-6 w-6 shrink-0 stroke-current"
+                            fill="none"
+                            viewBox="0 0 24 24">
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span>{alertMessage}</span>
+                    </div>
+                </section>
             )}
         </main>
     )

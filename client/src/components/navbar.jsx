@@ -1,13 +1,52 @@
-import React from 'react'
-import { NavLink } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { NavLink, useNavigate } from 'react-router-dom'
 
 const Navbar = () => {
+
+    const Navigate = useNavigate();
+
+    const [isLoggedin, setIsLoggedin] = useState(false);
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const token = localStorage.getItem('token');
+            console.log(token)
+            if (!token) {
+                setIsLoggedin(false);
+                return;
+            }
+
+            try {
+                const res = await fetch("http://localhost:3000/auth/validate", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                })
+
+                const data = await res.json();
+                if (data.status == "ok") {
+                    setIsLoggedin(true);
+                } else if (data.type == 2) {
+                    setIsLoggedin(false);
+                    localStorage.removeItem('token');
+                }
+            } catch (error) {
+                console.log(error)
+            }
+        }
+
+        checkAuth();
+    });
+
     return (
 
         <div className="navbar bg-base-200">
             <div className="flex-1 gap-2">
                 <NavLink className={(e) => { return e.isActive ? "btn text-xl btn-active" : "btn text-xl btn-ghost" }} to="/">Logo</NavLink>
-                <NavLink className={(e) => { return e.isActive ? "btn text-xl btn-active" : "btn text-xl btn-ghost" }} to="/login">Auth</NavLink>
+                {!isLoggedin && <NavLink className={(e) => { return e.isActive ? "btn text-xl btn-active" : "btn text-xl btn-ghost" }} to="/login">Auth</NavLink>}
+                {isLoggedin && <NavLink onClick={() => localStorage.removeItem('token')} className={(e) => { return e.isActive ? "btn text-xl btn-active" : "btn text-xl btn-ghost" }} to="/login">LO</NavLink>}
             </div>
             <div className="flex-none">
                 <button className="btn btn-square btn-ghost">
